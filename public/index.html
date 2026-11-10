@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mock Interview</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- 首页 -->
+  <main id="home" class="view">
+    <nav class="nav">
+      <div class="brand"><span class="logo"></span>Mock Interview</div>
+      <div class="seg" id="ui-lang">
+        <button data-v="zh">中文</button>
+        <button data-v="en">English</button>
+      </div>
+    </nav>
+    <div class="home-wrap">
+      <header class="hero">
+        <h1 data-i18n="heroTitle"></h1>
+        <p data-i18n="heroSub"></p>
+      </header>
+
+      <section>
+        <div class="sec-head"><h2 data-i18n="problems"></h2><span id="problem-count" class="muted"></span></div>
+        <div id="problems" class="cards"></div>
+      </section>
+
+      <section>
+        <div class="sec-head"><h2 data-i18n="generate"></h2></div>
+        <form id="gen" class="gen">
+          <input id="gen-topic" data-i18n-ph="genPlaceholder">
+          <select id="gen-diff">
+            <option value="easy" data-i18n="easy"></option>
+            <option value="medium" selected data-i18n="medium"></option>
+            <option value="hard" data-i18n="hard"></option>
+          </select>
+          <button type="submit" class="primary" data-i18n="genButton"></button>
+        </form>
+        <p class="hint" data-i18n-html="uploadHint"></p>
+      </section>
+
+      <section>
+        <div class="sec-head"><h2 data-i18n="history"></h2></div>
+        <div id="history" class="history"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- 开始前的设置 -->
+  <dialog id="setup">
+    <form method="dialog" class="setup">
+      <h3 id="setup-title"></h3>
+      <div id="setup-meta" class="muted"></div>
+      <label><span data-i18n="codeLang"></span><select id="setup-lang"></select></label>
+      <label><span data-i18n="interviewLang"></span>
+        <select id="setup-locale"><option value="en">English</option><option value="zh">中文</option></select>
+      </label>
+      <label><span data-i18n="duration"></span>
+        <select id="setup-minutes"></select>
+      </label>
+      <div class="setup-actions">
+        <button value="cancel" data-i18n="cancel"></button>
+        <button value="start" class="primary" data-i18n="start"></button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 面试房间 -->
+  <main id="room" class="view hidden">
+    <header class="bar">
+      <div class="brand small"><span class="logo"></span></div>
+      <span id="title" class="bar-title"></span>
+      <span id="stage-badge" class="pill"></span>
+      <span class="spacer"></span>
+      <span id="timer" class="timer"><i></i><b>00:00</b></span>
+      <button id="btn-run" data-i18n="run" data-i18n-title="runTitle"></button>
+      <button id="btn-test" class="primary"><span data-i18n="runTests"></span><kbd>⌘↵</kbd></button>
+      <button id="btn-end" class="danger" data-i18n="end"></button>
+    </header>
+    <div class="cols" id="cols">
+      <aside class="panel">
+        <div class="panel-head" data-i18n="problem"></div>
+        <div id="statement" class="statement md"></div>
+      </aside>
+      <div class="gutter" data-var="--left" data-dir="1"></div>
+      <section class="center">
+        <div class="panel grow">
+          <div class="panel-head"><span data-i18n="code"></span><span id="lang-badge" class="pill"></span></div>
+          <div id="editor"></div>
+        </div>
+        <div class="gutter row" data-var="--console" data-dir="-1"></div>
+        <div class="panel console">
+          <nav class="panel-head tabs">
+            <button data-tab="tests" class="active" data-i18n="testResults"></button>
+            <button data-tab="custom" data-i18n="customRun"></button>
+          </nav>
+          <div id="tab-tests" class="tab"></div>
+          <div id="tab-custom" class="tab hidden">
+            <div class="custom">
+              <label><span data-i18n="stdin"></span><textarea id="stdin" spellcheck="false"></textarea></label>
+              <label><span data-i18n="output"></span><pre id="run-out"></pre></label>
+            </div>
+          </div>
+        </div>
+      </section>
+      <div class="gutter" data-var="--right" data-dir="-1"></div>
+      <aside class="panel chat">
+        <div class="panel-head"><span class="avatar">I</span><span data-i18n="interviewer"></span><span id="typing" class="typing hidden"><i></i><i></i><i></i></span><span class="spacer"></span>
+          <button id="btn-tts" class="icon ghost" data-i18n-title="ttsTitle">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6v4h2.5l3.5 3V3L5 6z"/><path class="wave" d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.5a6.2 6.2 0 0 1 0 9"/><path class="off" d="M11 6l3.5 4M14.5 6 11 10"/></svg>
+          </button></div>
+        <div id="chat-log" class="chat-log"></div>
+        <div id="caption" class="caption hidden"><i></i><span></span></div>
+        <div class="chat-box">
+          <textarea id="chat-input" data-i18n-ph="chatPlaceholder"></textarea>
+          <button id="btn-mic" class="icon ghost" data-i18n-title="micTitle">
+            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5.75" y="1.75" width="4.5" height="8" rx="2.25"/><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.25"/></svg>
+          </button>
+          <button id="chat-send" class="primary icon" aria-label="send">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 8h11M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- 题目工作台 -->
+  <main id="shop" class="view hidden">
+    <header class="bar">
+      <div class="brand small"><span class="logo"></span></div>
+      <span id="shop-title" class="bar-title"></span>
+      <span class="pill" data-i18n="workshop"></span>
+      <span id="shop-status" class="pill"></span>
+      <span class="spacer"></span>
+      <button id="shop-validate" data-i18n="validate"></button>
+      <button id="shop-publish" class="primary hidden" data-i18n="publish"></button>
+      <button id="shop-delete" class="danger hidden" data-i18n="deleteDraft"></button>
+      <button id="shop-back" data-i18n="backHome"></button>
+    </header>
+    <div class="cols shop-cols">
+      <aside class="panel">
+        <div class="panel-head" data-i18n="files"></div>
+        <div id="shop-files" class="files"></div>
+      </aside>
+      <div></div>
+      <section class="panel">
+        <div class="panel-head">
+          <span id="shop-file-name"></span><i id="shop-dirty" class="dirty hidden"></i>
+          <span class="spacer"></span>
+          <button id="shop-preview-btn" class="ghost mini hidden" data-i18n="preview"></button>
+          <button id="shop-save" class="ghost mini"><span data-i18n="save"></span><kbd>⌘S</kbd></button>
+        </div>
+        <div id="shop-editor"></div>
+        <div id="shop-preview" class="statement md hidden"></div>
+      </section>
+      <div></div>
+      <aside class="panel chat">
+        <div class="panel-head"><span class="avatar">C</span><span>Claude</span><span id="shop-typing" class="typing hidden"><i></i><i></i><i></i></span></div>
+        <div id="shop-log" class="chat-log"></div>
+        <div class="chat-box">
+          <textarea id="shop-input" data-i18n-ph="shopPlaceholder"></textarea>
+          <button id="shop-stop" class="icon ghost hidden" data-i18n-title="stop"><svg viewBox="0 0 16 16" width="12" height="12"><rect x="3" y="3" width="10" height="10" rx="2" fill="currentColor"/></svg></button>
+          <button id="shop-send" class="primary icon" aria-label="send">
+            <svg viewBox="0 0 16 16" width="14" height="14"><path d="M2 8h11M8.5 3.5 13 8l-4.5 4.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- 复盘 -->
+  <main id="review" class="view hidden">
+    <header class="bar">
+      <div class="brand small"><span class="logo"></span></div>
+      <span class="bar-title" data-i18n="review"></span>
+      <span class="spacer"></span>
+      <button id="btn-home" data-i18n="backHome"></button>
+    </header>
+    <div class="review-scroll"><article id="review-body" class="md review-body"></article></div>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/vs/loader.js"></script>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

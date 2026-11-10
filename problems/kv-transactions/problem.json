@@ -1,0 +1,5 @@
+{
+  "title": { "zh": "支持嵌套事务的键值存储", "en": "Key-Value Store with Nested Transactions" },
+  "difficulty": "medium",
+  "stages": ["statement", "stage2", "stage3"]
+}

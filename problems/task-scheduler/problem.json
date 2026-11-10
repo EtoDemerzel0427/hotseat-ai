@@ -1,0 +1,7 @@
+{
+  "slug": "task-scheduler",
+  "title": { "zh": "带依赖的任务调度", "en": "Task Scheduler with Dependencies" },
+  "difficulty": "medium",
+  "minutes": 45,
+  "stages": ["statement", "stage2", "stage3"]
+}

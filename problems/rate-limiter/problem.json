@@ -1,0 +1,7 @@
+{
+  "slug": "rate-limiter",
+  "title": { "zh": "按用户的滑动窗口限流器", "en": "Per-User Sliding Window Rate Limiter" },
+  "difficulty": "medium",
+  "minutes": 45,
+  "stages": ["statement", "stage2"]
+}

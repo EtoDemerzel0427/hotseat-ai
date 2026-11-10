@@ -1,0 +1,5 @@
+node_modules
+sessions
+.DS_Store
+problems/_gen-*
+models

@@ -1,0 +1,7 @@
+{
+  "slug": "lru-cache-commands",
+  "title": { "zh": "LRU 缓存模拟器", "en": "LRU Cache Simulator" },
+  "difficulty": "medium",
+  "minutes": 45,
+  "stages": ["statement", "stage2"]
+}

@@ -1,0 +1,7 @@
+{
+  "slug": "expression-calculator",
+  "title": { "zh": "表达式计算器", "en": "Expression Calculator" },
+  "difficulty": "medium",
+  "minutes": 45,
+  "stages": ["statement", "stage2", "stage3"]
+}
