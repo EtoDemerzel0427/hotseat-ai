@@ -1,14 +1,14 @@
 // 一场面试：记录事件、判题、决定什么时候叫醒面试官。
+import { SESSIONS_DIR } from './config.mjs';
 import { createTwoFilesPatch } from 'diff';
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Interviewer, buildSystemPrompt } from './interviewer.mjs';
 import { LANGS, prepare, run, runTests } from './judge.mjs';
-import { ROOT, loadProblem } from './problems.mjs';
+import { loadProblem } from './problems.mjs';
 import { readEvents, writeReview } from './review.mjs';
 import { ensureWhisper, sttPrompt, transcribe } from './voice.mjs';
 
-export const SESSIONS_DIR = path.join(ROOT, 'sessions');
 
 const num = (name, d) => Number(process.env[name] || d);
 const IDLE_MS = num('IDLE_MS', 30_000);       // 改动后停顿多久叫醒面试官

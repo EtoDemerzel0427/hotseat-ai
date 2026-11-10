@@ -1,14 +1,15 @@
 // 题目工作台：一个能直接改这道题文件的 Claude 长会话。规则写在 prompts/author.md。
+import { PROMPTS_DIR } from './config.mjs';
 import { createSdkMcpServer, query, tool } from '@anthropic-ai/claude-agent-sdk';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { Inbox } from './interviewer.mjs';
-import { exec } from './judge.mjs';
+import { PYTHON, exec } from './judge.mjs';
 import { DEEP_MODEL, baseOptions } from './llm.mjs';
 import { listFiles, problemDir, validateProblem } from './problems.mjs';
 
-const PLAYBOOK = path.resolve(import.meta.dirname, '../prompts/author.md');
+const PLAYBOOK = path.join(PROMPTS_DIR, 'author.md');
 
 export class Workshop {
   constructor(ws) {
@@ -33,7 +34,7 @@ export class Workshop {
           return ok(v.message);
         }),
         tool('run_python', 'Run a short Python 3 script in the problem directory (e.g. to generate large inputs or to run the reference solution on an input). Returns stdout and stderr. 20 second limit.', { code: z.string() }, async ({ code }) => {
-          const r = await exec(process.env.PYTHON || 'python3', ['-c', code], { cwd: this.dir, timeoutMs: 20_000 });
+          const r = await exec(PYTHON || 'python3', ['-c', code], { cwd: this.dir, timeoutMs: 20_000 });
           return ok(`exit ${r.timedOut ? 'timeout' : r.code}\n--- stdout ---\n${r.stdout.slice(0, 6000)}\n--- stderr ---\n${r.stderr.slice(0, 3000)}`);
         }),
       ],

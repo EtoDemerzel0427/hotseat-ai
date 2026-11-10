@@ -1,28 +1,32 @@
+import { APP_ROOT, DATA_DIR, HOST, PORT, SESSIONS_DIR, pkgDir } from './config.mjs';
 import express from 'express';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir } from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
-import { LANGS } from './judge.mjs';
-import { ROOT, createDraft, deleteDraft, listFiles, listProblems, publishDraft, readProblemFile, validateProblem, writeProblemFile } from './problems.mjs';
+import { LANGS, availableLangs } from './judge.mjs';
+import { createDraft, deleteDraft, listFiles, listProblems, publishDraft, readProblemFile, validateProblem, writeProblemFile } from './problems.mjs';
 import { Workshop } from './workshop.mjs';
-import { SESSIONS_DIR, Session, generateReview } from './session.mjs';
-import { ttsStream } from './voice.mjs';
+import { Session, generateReview } from './session.mjs';
+import { ttsStream, voiceStatus } from './voice.mjs';
 
-const PORT = Number(process.env.PORT || 4477);
 const app = express();
 app.use(express.json({ limit: '1mb' }));
-app.use('/vs', express.static(path.join(ROOT, 'node_modules/monaco-editor/min/vs')));
-app.get('/lib/marked.js', (_, res) => res.sendFile(path.join(ROOT, 'node_modules/marked/lib/marked.esm.js')));
-app.use('/fonts/inter', express.static(path.join(ROOT, 'node_modules/@fontsource-variable/inter/files')));
-app.use('/fonts/mono', express.static(path.join(ROOT, 'node_modules/@fontsource-variable/jetbrains-mono/files')));
-app.use(express.static(path.join(ROOT, 'public')));
+app.use('/vs', express.static(path.join(pkgDir('monaco-editor', 'min/vs/loader.js'), 'min/vs')));
+app.get('/lib/marked.js', (_, res) => res.sendFile(path.join(pkgDir('marked', ''), 'lib/marked.esm.js')));
+app.use('/fonts/inter', express.static(path.join(pkgDir('@fontsource-variable/inter'), 'files')));
+app.use('/fonts/mono', express.static(path.join(pkgDir('@fontsource-variable/jetbrains-mono'), 'files')));
+app.use(express.static(path.join(APP_ROOT, 'public')));
+
+app.get('/api/config', (_, res) => res.json(voiceStatus()));
 
 const wrap = (fn) => (req, res) => fn(req, res).catch((e) => res.status(500).json({ error: e.message }));
 
 app.get('/api/problems', wrap(async (_, res) => {
-  res.json({ problems: await listProblems(), langs: Object.fromEntries(Object.entries(LANGS).map(([k, v]) => [k, v.label])) });
+  const ok = availableLangs();
+  const problems = (await listProblems()).map((p) => ({ ...p, langs: p.langs.filter((l) => ok.includes(l)) }));
+  res.json({ problems, langs: Object.fromEntries(Object.entries(LANGS).map(([k, v]) => [k, v.label])) });
 }));
 
 // ---------- 题目工作台 ----------
@@ -40,8 +44,8 @@ app.post('/api/problems/:slug/delete', wrap(async (req, res) => { await deleteDr
 app.get('/api/tts', wrap(async (req, res) => {
   const text = String(req.query.text || '').slice(0, 2000);
   if (!text.trim()) return res.status(400).json({ error: 'empty text' });
-  const stream = await ttsStream(text, req.query.locale === 'zh' ? 'zh' : 'en');
-  res.set({ 'content-type': 'audio/mpeg', 'cache-control': 'no-store' });
+  const { stream, type } = await ttsStream(text, req.query.locale === 'zh' ? 'zh' : 'en');
+  res.set({ 'content-type': type, 'cache-control': 'no-store' });
   stream.on('error', () => res.end());
   stream.pipe(res);
 }));
@@ -106,4 +110,19 @@ wss.on('connection', (ws) => {
   ws.on('close', () => { chain = chain.then(() => session.end(false)).catch(() => {}); });
 });
 
-server.listen(PORT, '127.0.0.1', () => console.log(`mock-interview: http://localhost:${PORT}`));
+server.on('error', (e) => {
+  console.error(e.code === 'EADDRINUSE' ? `Port ${PORT} is already in use. Set PORT in .env to use another one.` : e.message);
+  process.exit(1);
+});
+export const ready = new Promise((resolve) => {
+  server.listen(PORT, HOST, () => {
+    const v = voiceStatus();
+    console.log(`\n  Hotseat is running at http://localhost:${PORT}\n`);
+    console.log(`  data        ${DATA_DIR}`);
+    console.log(`  languages   ${availableLangs().map((l) => LANGS[l].label).join(', ') || 'none found (install a C++ compiler or Python 3)'}`);
+    console.log(`  speech in   ${v.stt ? 'whisper.cpp ready' : `off (${v.sttReason})`}`);
+    console.log(`  speech out  ${v.tts}`);
+    console.log(`  Claude      ${process.env.ANTHROPIC_API_KEY ? 'ANTHROPIC_API_KEY' : process.env.CLAUDE_CODE_OAUTH_TOKEN ? 'CLAUDE_CODE_OAUTH_TOKEN' : 'no API key set; using the Claude Code login on this machine if there is one'}\n`);
+    resolve(`http://localhost:${PORT}`);
+  });
+});

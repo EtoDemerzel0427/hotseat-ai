@@ -1,0 +1,8 @@
+node_modules
+sessions
+models
+.git
+.env
+*.tgz
+problems/_draft-*
+problems/*/tests.json.tmp

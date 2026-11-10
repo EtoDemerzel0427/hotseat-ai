@@ -1,12 +1,13 @@
 // 面试官：一场面试对应一个 Claude 长会话。平台往里推事件，它通过工具开口或保持沉默。
 // 行为规则写在 prompts/interviewer.md 里，改那个文件就能调整面试官，不用动代码。
+import { PROMPTS_DIR } from './config.mjs';
 import { createSdkMcpServer, query, tool } from '@anthropic-ai/claude-agent-sdk';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { LIVE_MODEL, baseOptions } from './llm.mjs';
 
-const PLAYBOOK = path.resolve(import.meta.dirname, '../prompts/interviewer.md');
+const PLAYBOOK = path.join(PROMPTS_DIR, 'interviewer.md');
 export const SPEAK_LANG = { zh: 'Chinese (Simplified, Mandarin)', en: 'English' };
 
 export class Inbox {

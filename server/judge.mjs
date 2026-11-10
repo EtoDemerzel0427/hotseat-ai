@@ -1,28 +1,38 @@
 // 本地编译运行：C++ 和 Python，带超时和输出上限。
-import { spawn } from 'node:child_process';
+import './config.mjs';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const CXX = process.env.CXX || (existsSync('/usr/bin/clang++') ? '/usr/bin/clang++' : 'clang++');
-const PYTHON = process.env.PYTHON || 'python3';
+const works = (cmd, args) => {
+  try { return spawnSync(cmd, args, { stdio: 'ignore', timeout: 10_000 }).status === 0; } catch { return false; }
+};
+const firstWorking = (cands, args) => cands.filter(Boolean).find((c) => works(c, args)) || null;
+const WIN = process.platform === 'win32';
+
+export const CXX = firstWorking([process.env.CXX, existsSync('/usr/bin/clang++') ? '/usr/bin/clang++' : null, 'clang++', 'g++', 'c++'], ['--version']);
+export const PYTHON = firstWorking([process.env.PYTHON, 'python3', 'python'], ['-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 8) else 1)']);
 
 export const LANGS = {
   cpp: {
     label: 'C++20',
     file: 'main.cpp',
     monaco: 'cpp',
-    compile: [CXX, ['-std=c++20', '-O2', '-Wall', '-Wextra', '-o', 'main', 'main.cpp']],
-    run: ['./main', []],
+    available: !!CXX,
+    compile: (dir) => [CXX, ['-std=c++20', '-O2', '-Wall', '-Wextra', '-o', path.join(dir, WIN ? 'main.exe' : 'main'), 'main.cpp']],
+    run: (dir) => [path.join(dir, WIN ? 'main.exe' : 'main'), []],
   },
   py: {
     label: 'Python 3',
     file: 'main.py',
     monaco: 'python',
+    available: !!PYTHON,
     compile: null,
-    run: [PYTHON, ['main.py']],
+    run: () => [PYTHON, ['main.py']],
   },
 };
+export const availableLangs = () => Object.keys(LANGS).filter((l) => LANGS[l].available);
 
 const MAX_OUT = 200_000;
 
@@ -56,18 +66,19 @@ export function exec(cmd, args, { cwd, stdin = '', timeoutMs = 5000 }) {
 // 写入源码并编译。返回 { ok, stderr }。
 export async function prepare(dir, lang, code) {
   const L = LANGS[lang];
-  if (!L) return { ok: false, stderr: `不支持的语言: ${lang}` };
+  if (!L || !L.available) return { ok: false, stderr: `${L?.label || lang} is not available on this machine` };
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, L.file), code);
   if (!L.compile) return { ok: true, stderr: '' };
-  const r = await exec(L.compile[0], L.compile[1], { cwd: dir, timeoutMs: 30_000 });
-  if (r.timedOut) return { ok: false, stderr: '编译超时' };
+  const [cmd, args] = L.compile(dir);
+  const r = await exec(cmd, args, { cwd: dir, timeoutMs: 30_000 });
+  if (r.timedOut) return { ok: false, stderr: 'compilation timed out' };
   return { ok: r.code === 0, stderr: r.stderr };
 }
 
 export function run(dir, lang, stdin, timeoutMs = 3000) {
-  const L = LANGS[lang];
-  return exec(L.run[0], L.run[1], { cwd: dir, stdin, timeoutMs });
+  const [cmd, args] = LANGS[lang].run(dir);
+  return exec(cmd, args, { cwd: dir, stdin, timeoutMs });
 }
 
 const norm = (s) => s.replace(/\r/g, '').split('\n').map((l) => l.trimEnd()).join('\n').trimEnd();

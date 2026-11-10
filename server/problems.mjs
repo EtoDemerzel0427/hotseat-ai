@@ -9,14 +9,14 @@
 //   interviewer.md  面试官备注（英文）：期望解法、常见坑、追问、分级提示
 //   tests.json      由参考解对 inputs.json 跑出来的，自动生成
 // 以 _draft- 开头的目录是工作台里还没发布的草稿。
+import { PROBLEMS_DIR } from './config.mjs';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { LANGS, prepare, run, runTests } from './judge.mjs';
 
-export const ROOT = path.resolve(import.meta.dirname, '..');
-export const PROBLEMS_DIR = path.join(ROOT, 'problems');
+export { PROBLEMS_DIR };
 
 const read = (p) => readFile(p, 'utf8');
 const readOr = async (p, d = '') => (existsSync(p) ? read(p) : d);

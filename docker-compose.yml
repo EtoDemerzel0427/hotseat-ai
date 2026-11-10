@@ -1,0 +1,28 @@
+# docker compose up --build
+# Put ANTHROPIC_API_KEY=... in a .env file next to this one (see .env.example).
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:${PORT:-4477}:4477"
+    environment:
+      # Passed through only when set in your shell or in .env.
+      - ANTHROPIC_API_KEY
+      - CLAUDE_CODE_OAUTH_TOKEN
+      - LIVE_MODEL
+      - DEEP_MODEL
+      - TTS_PROVIDER
+      - TTS_VOICE_EN
+      - TTS_VOICE_ZH
+      - TTS_OPENAI_BASE_URL
+      - TTS_OPENAI_API_KEY
+      - TTS_OPENAI_MODEL
+      - IDLE_MS
+      - STALL_MS
+      - MIN_GAP_MS
+      - VOICE_GAP_MS
+    volumes:
+      - data:/data
+    init: true
+volumes:
+  data:

@@ -3,3 +3,4 @@ sessions
 .DS_Store
 problems/_gen-*
 models
+.env

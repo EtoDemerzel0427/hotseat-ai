@@ -40,7 +40,7 @@ const I18N = {
     stageN: (i, n) => `阶段 ${i} / ${n}`, stageShown: (i) => `阶段 ${i} 的需求已显示在题面下方`,
     you: '你', hintTag: '提示', voiceTag: '语音', listening: '正在听…', hearing: '你在说话…', transcribing: '正在转写…', loadingModel: '正在加载识别模型…',
     micTitle: '麦克风：你说的话由本地 Whisper 转成文字发给面试官', ttsTitle: '朗读面试官的话',
-    noMic: '这个浏览器不支持录音。', micDenied: '无法使用麦克风。请在浏览器地址栏里允许本页使用麦克风。',
+    noMic: '这个浏览器不支持录音。', sttOff: '语音识别还没有安装。在项目目录运行 npx hotseat-ai setup-voice，然后重启。', micDenied: '无法使用麦克风。请在浏览器地址栏里允许本页使用麦克风。',
     confirmEnd: '结束这场面试并生成复盘？', reviewing: '面试已结束，正在根据完整的改动历史写复盘，通常需要一分钟左右…',
     disconnected: '与本地服务的连接断开了，本场面试已结束并保存。',
   },
@@ -67,7 +67,7 @@ const I18N = {
     stageN: (i, n) => `Stage ${i} / ${n}`, stageShown: (i) => `Stage ${i} is now shown below the statement`,
     you: 'You', hintTag: 'hint', voiceTag: 'voice', listening: 'Listening…', hearing: 'Hearing you…', transcribing: 'Transcribing…', loadingModel: 'Loading the speech model…',
     micTitle: 'Microphone: local Whisper transcribes what you say and sends it to the interviewer', ttsTitle: 'Read the interviewer aloud',
-    noMic: 'This browser cannot record audio.', micDenied: 'Cannot use the microphone. Allow microphone access for this page in the address bar.',
+    noMic: 'This browser cannot record audio.', sttOff: 'Speech-to-text is not set up. Run "npx hotseat-ai setup-voice" in the project folder and restart.', micDenied: 'Cannot use the microphone. Allow microphone access for this page in the address bar.',
     confirmEnd: 'End this interview and generate the review?', reviewing: 'Interview ended. Writing the review from your full edit history; this usually takes about a minute…',
     disconnected: 'Lost the connection to the local server. This interview has ended and was saved.',
   },
@@ -175,7 +175,8 @@ const EDITOR_OPTIONS = {
 };
 
 // ---------- 首页 ----------
-let langs = {}, allProblems = [];
+let langs = {}, allProblems = [], appConfig = { stt: true, tts: 'edge' };
+api('/api/config').then((c) => { appConfig = c; $('#btn-tts').classList.toggle('hidden', c.tts === 'off'); if (c.tts === 'off') setTts(false); }).catch(() => {});
 
 async function loadHome() {
   show('home');
@@ -749,7 +750,11 @@ async function setMic(on) {
   showCaption(t('loadingModel'));
   wsSend({ t: 'mic', on: true });
 }
-$('#btn-mic').onclick = () => { if (live) setMic(!micOn); };
+$('#btn-mic').onclick = () => {
+  if (!live) return;
+  if (!micOn && !appConfig.stt) { toast(`${t('sttOff')} (${appConfig.sttReason})`, 9000); return; }
+  setMic(!micOn);
+};
 
 function onHeard(m) {
   pendingHeard = Math.max(0, pendingHeard - 1);

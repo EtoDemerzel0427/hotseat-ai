@@ -83,7 +83,7 @@ export async function writeReview({ problem, langLabel, events, starter, locale 
   const h = HEADINGS[locale] || HEADINGS.en;
   const prompt = `You are a senior interviewer who has just finished running a coding interview. Below is the full record. Write a review addressed to the candidate.
 
-The candidate relies heavily on AI to write code at work and is doing these mock interviews to get back the ability to write code by hand. They want specific, direct feedback. No pleasantries, no encouragement, no slogans.
+The candidate is doing mock interviews to keep, or get back, the ability to write code by hand under interview conditions. They want specific, direct feedback. No pleasantries, no encouragement, no slogans.
 
 Write the review in ${SPEAK_LANG[locale] || SPEAK_LANG.en}.
 
