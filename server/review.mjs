@@ -31,6 +31,7 @@ export function buildDigest(events, starter) {
   for (const e of events) {
     switch (e.type) {
       case 'edit':
+        if (e.by === 'iv') break;
         for (const c of e.ch) { inserted += c.t.length; deleted += c.l; }
         if (firstEdit === null) firstEdit = e.ts;
         if (lastEditTs && e.ts - lastEditTs > 45_000) pauses.push([lastEditTs, e.ts]);
@@ -56,6 +57,7 @@ export function buildDigest(events, starter) {
       case 'chat': lines.push(`[${mmss(e.ts)}] candidate${e.voice ? ' (spoken, speech-to-text)' : ''}: ${e.text}`); break;
       case 'speak': lines.push(`[${mmss(e.ts)}] interviewer${e.kind ? ` (${e.kind})` : ''}: ${e.text}`); break;
       case 'note': lines.push(`[${mmss(e.ts)}] (interviewer's private note) ${e.text}`); break;
+      case 'ivwrite': lines.push(`[${mmss(e.ts)}] interviewer typed these lines into the candidate's editor:\n${e.text}`); break;
       case 'stage': lines.push(`[${mmss(e.ts)}] stage ${e.index + 1} revealed`); break;
       case 'end':
         emitDiff(e.ts, e.code ?? lastCode);
@@ -107,6 +109,8 @@ Language: ${langLabel}
 ${d.stats}
 
 # Timeline (code changes are diffs; times are minutes:seconds since the start)
+
+Lines the timeline marks as typed by the interviewer appear in the code diffs and the final code too. They are not the candidate's work; do not credit or blame the candidate for them.
 
 ${d.timeline}
 

@@ -37,7 +37,7 @@ const I18N = {
     sPass: '通过', sTle: '超时', sRe: '崩溃', sWa: '错误', hidden: '隐藏用例', warnings: '编译警告', warn: '警告',
     input: '输入', expected: '期望输出', yours: '你的输出',
     exit: (c) => `exit ${c}`, timeout5: '超时 (5s)',
-    stageN: (i, n) => `阶段 ${i} / ${n}`, stageShown: (i) => `阶段 ${i} 的需求已显示在题面下方`,
+    stageN: (i, n) => `阶段 ${i} / ${n}`, stageShown: (i) => `阶段 ${i} 的需求已显示在题面下方`, ivWrote: (n) => `面试官在编辑器第 ${n} 行写了内容`,
     you: '你', hintTag: '提示', voiceTag: '语音', listening: '正在听…', hearing: '你在说话…', transcribing: '正在转写…', loadingModel: '正在加载识别模型…',
     micTitle: '麦克风：你说的话由本地 Whisper 转成文字发给面试官', ttsTitle: '朗读面试官的话',
     noMic: '这个浏览器不支持录音。', sttOff: '语音识别还没有安装。在项目目录运行 npx hotseat-ai setup-voice，然后重启。', micDenied: '无法使用麦克风。请在浏览器地址栏里允许本页使用麦克风。',
@@ -64,7 +64,7 @@ const I18N = {
     sPass: 'Pass', sTle: 'Timeout', sRe: 'Crash', sWa: 'Wrong', hidden: 'hidden', warnings: 'Compiler warnings', warn: 'Warn',
     input: 'Input', expected: 'Expected', yours: 'Your output',
     exit: (c) => `exit ${c}`, timeout5: 'timeout (5s)',
-    stageN: (i, n) => `Stage ${i} / ${n}`, stageShown: (i) => `Stage ${i} is now shown below the statement`,
+    stageN: (i, n) => `Stage ${i} / ${n}`, stageShown: (i) => `Stage ${i} is now shown below the statement`, ivWrote: (n) => `The interviewer wrote in the editor at line ${n}`,
     you: 'You', hintTag: 'hint', voiceTag: 'voice', listening: 'Listening…', hearing: 'Hearing you…', transcribing: 'Transcribing…', loadingModel: 'Loading the speech model…',
     micTitle: 'Microphone: local Whisper transcribes what you say and sends it to the interviewer', ttsTitle: 'Read the interviewer aloud',
     noMic: 'This browser cannot record audio.', sttOff: 'Speech-to-text is not set up. Run "npx hotseat-ai setup-voice" in the project folder and restart.', micDenied: 'Cannot use the microphone. Allow microphone access for this page in the address bar.',
@@ -498,6 +498,52 @@ function addMsg(kind, text, speakKind, voice) {
   else el.innerHTML = `<span class="at" data-tag="${t('hintTag')}">${kind === 'iv' ? t('interviewer') : t('you')} · ${mmss(Date.now() - t0)}${voice ? ` · <span class="v">${t('voiceTag')}</span>` : ''}</span><div class="bubble">${esc(text)}</div>`;
   $('#chat-log').append(el);
   $('#chat-log').scrollTop = $('#chat-log').scrollHeight;
+  return el;
+}
+
+// 面试官往编辑器里写的内容：插到指定行下面，找不到就插在光标所在行上面。
+let ivWriting = false;
+function ivWrite(monaco, m) {
+  if (!editor || !m.lines?.length) return;
+  const model = editor.getModel();
+  if (syncTimer) { clearTimeout(syncTimer); syncTimer = null; wsSend({ t: 'code', code: code() }); }
+  const want = (m.after || '').trim();
+  const count = model.getLineCount();
+  let after = 0, indentFrom = 0;
+  if (want) {
+    for (let i = 1; i <= count && !after; i++) if (model.getLineContent(i).trim() === want) after = i;
+    for (let i = 1; i <= count && !after; i++) if (model.getLineContent(i).includes(want)) after = i;
+    indentFrom = after;
+  }
+  if (!after) {
+    const cur = editor.getPosition()?.lineNumber || 1;
+    after = cur - 1;
+    indentFrom = cur;
+  }
+  const indent = /^\s*/.exec(model.getLineContent(indentFrom))[0];
+  const body = m.lines.map((l) => indent + l).join('\n');
+  const op = after === 0
+    ? { range: new monaco.Range(1, 1, 1, 1), text: `${body}\n` }
+    : { range: new monaco.Range(after, model.getLineMaxColumn(after), after, model.getLineMaxColumn(after)), text: `\n${body}` };
+  const sel = editor.getSelections();
+  const keep = sel && sel.every((x) => x.endLineNumber <= after);
+  editor.pushUndoStop();
+  ivWriting = true;
+  try { editor.executeEdits('interviewer', [op]); } finally { ivWriting = false; }
+  editor.pushUndoStop();
+  if (keep) editor.setSelections(sel);
+  wsSend({ t: 'code', code: code(), by: 'iv' });
+
+  const first = after + 1, last = after + m.lines.length;
+  const range = new monaco.Range(first, 1, last, 1);
+  const sticky = monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges;
+  const mark = editor.createDecorationsCollection([{ range, options: { isWholeLine: true, className: 'iv-line', linesDecorationsClassName: 'iv-bar', stickiness: sticky } }]);
+  const flash = editor.createDecorationsCollection([{ range, options: { isWholeLine: true, className: 'iv-flash', stickiness: sticky } }]);
+  setTimeout(() => flash.clear(), 2600);
+  editor.revealLinesInCenterIfOutsideViewport(first, last);
+  const el = addMsg('sys', t('ivWrote', first));
+  el.classList.add('link');
+  el.onclick = () => { const r = mark.getRange(0) || range; editor.revealLinesInCenter(r.startLineNumber, r.endLineNumber); };
 }
 
 function setStage(i) { $('#stage-badge').textContent = t('stageN', i + 1, totalStages); }
@@ -540,9 +586,11 @@ async function startInterview(slug, lang, locale, mins) {
         $('#editor').innerHTML = '';
         editor = monaco.editor.create($('#editor'), { ...EDITOR_OPTIONS, value: m.starter, language: m.monaco });
         editor.onDidChangeModelContent((e) => {
-          wsSend({ t: 'edit', ch: e.changes.map((c) => ({ o: c.rangeOffset, l: c.rangeLength, t: c.text })) });
+          const ch = e.changes.map((c) => ({ o: c.rangeOffset, l: c.rangeLength, t: c.text }));
+          if (ivWriting) { wsSend({ t: 'edit', ch, by: 'iv' }); return; }
+          wsSend({ t: 'edit', ch });
           clearTimeout(syncTimer);
-          syncTimer = setTimeout(() => wsSend({ t: 'code', code: code() }), 1200);
+          syncTimer = setTimeout(() => { syncTimer = null; wsSend({ t: 'code', code: code() }); }, 1200);
         });
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, runTests);
         editor.focus();
@@ -552,6 +600,7 @@ async function startInterview(slug, lang, locale, mins) {
         break;
       }
       case 'interviewer': addMsg('iv', m.text, m.kind); speak(m.text); break;
+      case 'ivWrite': ivWrite(monaco, m); break;
       case 'heard': onHeard(m); break;
       case 'micReady': if (micOn) idleCaption(); break;
       case 'micError': setMic(false); toast(m.text, 8000); break;

@@ -13,6 +13,7 @@ Practising alone on a judge tells you whether your code passes. It does not tell
 ## What it does
 
 - **Live interviewer.** It is woken when you ask something, run the tests, pause after writing, paste a large block, or stall, and then chooses between speaking and silence. It asks for your approach before you code, does not point out bugs it can see, and gives hints only in graded steps. Its rules are a plain Markdown file you can edit.
+- **Shared editor.** The interviewer can type into your editor, as on a shared pad: a clarified rule, a small worked example, an interface it wants you to implement. Its lines are highlighted and logged separately from your edits, so the review does not count them as yours.
 - **Staged requirements.** Problems have two or three stages. The interviewer reveals the next one when you finish the current one, as in a real onsite.
 - **Local judge.** C++20 and Python 3 are compiled and run on your machine against public and hidden tests. Starter code handles all input and output; you write the logic.
 - **Edit history and review.** Every keystroke delta, snapshot, test run, message and private interviewer note is logged. When you end the interview, a stronger model reads that history and writes a review with timestamps: where you hesitated, what you rewrote, how each bug got in and out.

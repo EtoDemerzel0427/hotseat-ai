@@ -190,6 +190,12 @@ button.mini { height: 26px; padding: 0 9px; font-size: 12px; }
 .msg.me { align-self: flex-end; align-items: flex-end; }
 .msg.me .bubble { background: var(--accent-soft); border: 1px solid rgba(123, 140, 255, .28); border-top-right-radius: 4px; }
 .msg.sys { align-self: center; color: var(--muted); font-size: 12px; }
+.msg.sys.link { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.msg.sys.link:hover { color: var(--text-2); }
+.monaco-editor .iv-line { background: rgba(239, 181, 74, .07); }
+.monaco-editor .iv-bar { background: var(--warn); width: 3px !important; margin-left: 5px; border-radius: 2px; }
+.monaco-editor .iv-flash { animation: iv-flash 2.4s ease-out forwards; }
+@keyframes iv-flash { from { background: rgba(239, 181, 74, .32); } to { background: transparent; } }
 .typing { display: inline-flex; gap: 3px; margin-left: 4px; }
 .typing i { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); animation: blink 1s infinite; }
 .typing i:nth-child(2) { animation-delay: .15s; } .typing i:nth-child(3) { animation-delay: .3s; }

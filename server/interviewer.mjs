@@ -41,10 +41,11 @@ export async function buildSystemPrompt({ problem, langLabel, minutes, locale })
 }
 
 export class Interviewer {
-  constructor({ systemPrompt, onSpeak, onNote, onReveal, onTurnEnd, onError }) {
+  constructor({ systemPrompt, onSpeak, onNote, onReveal, onWrite, onTurnEnd, onError }) {
     this.inbox = new Inbox();
     this.cb = { onSpeak, onNote, onReveal, onTurnEnd, onError };
     this.spoke = false;
+    this.wrote = false;
     const ok = (text) => ({ content: [{ type: 'text', text }] });
 
     const server = createSdkMcpServer({
@@ -65,6 +66,14 @@ export class Interviewer {
           return ok('Recorded.');
         }),
         tool('reveal_next_stage', 'Show the next stage of the problem to the candidate. Follow it with speak to tell them.', {}, async () => ok(onReveal())),
+        tool('write_in_editor', 'Type lines into the candidate\'s code editor, as on a shared pad. The text is inserted verbatim and becomes part of the program, so write comments with the language\'s comment markers and make sure any code you write compiles. Call it before speak.', {
+          text: z.string().describe('The lines to insert, at most 30. The indentation of the anchor line is added in front of every line.'),
+          after: z.string().optional().describe('Exact content of an existing line of the current code; the text is inserted below that line. Omit it to insert just above the line the candidate\'s cursor is on.'),
+        }, async ({ text, after }) => {
+          if (this.wrote) return ok('You already wrote in the editor in this event.');
+          this.wrote = true;
+          return ok(onWrite(text, after));
+        }),
       ],
     });
 
@@ -74,7 +83,7 @@ export class Interviewer {
         systemPrompt,
         model: LIVE_MODEL,
         mcpServers: { iv: server },
-        allowedTools: ['mcp__iv__speak', 'mcp__iv__note', 'mcp__iv__reveal_next_stage'],
+        allowedTools: ['mcp__iv__speak', 'mcp__iv__note', 'mcp__iv__reveal_next_stage', 'mcp__iv__write_in_editor'],
       }),
     });
     this.loop();
@@ -86,6 +95,7 @@ export class Interviewer {
         if (process.env.IV_DEBUG) console.error('MSG', m.type, m.subtype || '', m.type === 'assistant' ? JSON.stringify(m.message.content).slice(0, 300) : '');
         if (m.type === 'result') {
           this.spoke = false;
+          this.wrote = false;
           this.cb.onTurnEnd(m.subtype === 'success' ? null : m.subtype);
         }
       }

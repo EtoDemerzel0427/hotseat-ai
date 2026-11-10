@@ -67,6 +67,7 @@ export class Session {
       onSpeak: (text, kind) => { this.log({ type: 'speak', kind, text }); this.send({ t: 'interviewer', text, kind }); },
       onNote: (text) => this.log({ type: 'note', text }),
       onReveal: () => this.revealNext(),
+      onWrite: (text, after) => this.writeInEditor(text, after),
       onTurnEnd: (err) => {
         this.busy = false;
         this.lastTurnEnd = Date.now();
@@ -96,6 +97,19 @@ export class Session {
     return `Stage ${this.stage + 1} is now visible to the candidate, below the earlier statement.`;
   }
 
+  // 面试官往编辑器里写字：原样插入，写注释还是写代码由它自己判断。由前端插入（前端的代码才是最新的）。
+  writeInEditor(text, after) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n').map((l) => l.trimEnd());
+    while (lines.length && !lines[0].trim()) lines.shift();
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    if (!lines.length) return 'Nothing was written: the text was empty.';
+    if (lines.length > 30) return `Nothing was written: ${lines.length} lines is too long. Keep it to 30 lines or fewer.`;
+    this.log({ type: 'ivwrite', text: lines.join('\n'), after: after || undefined });
+    this.send({ t: 'ivWrite', lines, after: after || '' });
+    this.ivWrote = true;
+    return 'Inserted into the editor verbatim; the candidate sees the lines highlighted. Now call speak with one short sentence that points them to it.';
+  }
+
   activeTests() { return this.problem.tests.filter((t) => t.stage <= this.stage + 1); }
 
   resetStall() {
@@ -103,7 +117,8 @@ export class Session {
     this.stallTimer = setTimeout(() => this.trigger('stall'), STALL_MS);
   }
 
-  setCode(code, forceSnap = false) {
+  // quiet：改动来自面试官，不算候选人的活动，不重置停顿和卡住的计时。
+  setCode(code, forceSnap = false, quiet = false) {
     if (typeof code !== 'string') return;
     const changed = code !== this.code;
     this.code = code;
@@ -112,7 +127,7 @@ export class Session {
       this.lastSnapCode = code;
       this.log({ type: 'snap', code });
     }
-    if (changed) {
+    if (changed && !quiet) {
       clearTimeout(this.idleTimer);
       this.idleTimer = setTimeout(() => this.trigger('pause'), IDLE_MS);
       this.resetStall();
@@ -180,8 +195,10 @@ export class Session {
     } else {
       const patch = createTwoFilesPatch('before', 'after', this.lastSentCode, this.code, '', '', { context: 2 }).split('\n').slice(4).join('\n');
       out.push(`Changes since the previous event:\n\`\`\`diff\n${patch}\n\`\`\``);
+      if (this.ivWrote) out.push('The diff includes the lines you typed into the editor yourself; they are not the candidate\'s work.');
       out.push(`Full current code:\n\`\`\`\n${this.code}\n\`\`\``);
     }
+    this.ivWrote = false;
     return out.join('\n\n');
   }
 
@@ -205,6 +222,7 @@ export class Session {
     if (!this.started || this.ended) return;
     switch (m.t) {
       case 'edit': {
+        if (m.by === 'iv') { this.log({ type: 'edit', ch: m.ch, by: 'iv' }); break; }
         this.log({ type: 'edit', ch: m.ch });
         const big = m.ch.reduce((a, c) => Math.max(a, c.t.length), 0);
         if (big >= PASTE_CHARS) {
@@ -215,6 +233,7 @@ export class Session {
         break;
       }
       case 'code':
+        if (m.by === 'iv') { this.setCode(m.code, true, true); break; }
         this.setCode(m.code);
         if (this.pending.kinds.has('paste')) this.flush();
         break;
